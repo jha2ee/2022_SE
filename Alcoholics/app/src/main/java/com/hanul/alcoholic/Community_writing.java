@@ -172,6 +172,7 @@ public class Community_writing extends AppCompatActivity {
     }
     private void writeNewPost(String userId,String userName, String title,String body){
         String key = databaseReference.child("Post").push().getKey();
+        Comment comment = new Comment();
         Post post = new Post(userId,userName,title,body);
         //작성 시간 저장
         SimpleDateFormat format1 = new SimpleDateFormat("yyyy-MM-dd HH:mm");
@@ -179,13 +180,17 @@ public class Community_writing extends AppCompatActivity {
         String timeSting = format1.format(time);
         post.setDate(timeSting);
         post.setKey(key);
+        post.setComment(comment);
+        post.setStarCount(0);
+        post.setCommentCount(0);
+        post.setProfile(null);
+        //post.setComment(null);
         //입력 데이터를 해시맵에 맵핑
         Map<String,Object> postValue = post.toMap();
         Map<String,Object> chileUpdates = new HashMap<>();
         //맵핑된 해시 테이블 오브젝트를 firebase에 업데이트
         chileUpdates.put("/Post/"+key,postValue);
         chileUpdates.put("/User-post/"+userId+"/"+key,postValue);
-
         databaseReference.updateChildren(chileUpdates);
     }
 }

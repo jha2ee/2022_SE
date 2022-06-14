@@ -13,12 +13,18 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.hanul.alcoholic.MainActivity;
 
 import org.json.JSONArray;
@@ -33,7 +39,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -45,9 +53,14 @@ public class API_Recipe extends AppCompatActivity {
     String jsonData;
     Handler handler=new Handler();
     ImageView image;
-    LinkedHashMap<String,String> hashMap=new LinkedHashMap<>();
+    private Button favoriteBtn;
+    private FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
+    private DatabaseReference databaseReference;
+    ArrayList<String> favoriteInfo = new ArrayList<String>();
+    LinkedHashMap<String,Object> hashMap=new LinkedHashMap<>();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.api_recipe);
         Bundle bundle=getIntent().getExtras();
@@ -103,11 +116,12 @@ public class API_Recipe extends AppCompatActivity {
                         for(int j=1;j<=strMeasure.length;j++){
                             hashMap.put("strMeasure"+j,jObject.optString("strMeasure"+j));
                         }
+                        getTranslation();
                     }
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-                getTranslation();
+
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -119,23 +133,23 @@ public class API_Recipe extends AppCompatActivity {
                         TextView ingredient = (TextView) findViewById(R.id.ingredient);
                         TextView recipe = (TextView) findViewById(R.id.post);
 
-                        name.setText(hashMap.get("strDrink"));
+                        name.setText((String)hashMap.get("strDrink"));
 
                         infoStr+=hashMap.get("strCategory")+" / "+hashMap.get("strAlcoholic");
-                        if(!hashMap.get("strTags").trim().equals("null"))
+                        if(!hashMap.get("strTags").toString().trim().equals("null"))
                             infoStr=hashMap.get("strTags")+" / "+infoStr;
                         info.setText(infoStr);
 
-                        image=(ImageView)findViewById(R.id.detailRecipeImg);
-                        new DownloadFilesTask().execute(hashMap.get("strDrinkThumb"));
+                        ImageView imageView= findViewById(R.id.detailRecipeImg);
+                        Glide.with(getApplicationContext()).load(hashMap.get("strDrinkThumb")).into(imageView);
 
-                        glass.setText(hashMap.get("strGlass"));
+                        glass.setText(hashMap.get("strGlass").toString());
 
-                        recipe.setText(hashMap.get("strInstructions")+" 뿅☆");
+                        recipe.setText(hashMap.get("strInstructions")+" 뿅★");
 
                         for(int i=1;i<=15;i++){
-                            if(hashMap.get("strIngredient"+i).trim().equals("null")) break;
-                            else if(!hashMap.get("strMeasure"+i).trim().equals("null"))
+                            if(hashMap.get("strIngredient"+i).toString().trim().equals("null")) break;
+                            else if(!hashMap.get("strMeasure"+i).toString().trim().equals("null"))
                                 ingrStr+=hashMap.get("strIngredient"+i)+" "+hashMap.get("strMeasure"+i)+"\n";
                             else
                                 ingrStr+=hashMap.get("strIngredient"+i)+"\n";
@@ -157,12 +171,33 @@ public class API_Recipe extends AppCompatActivity {
                 });
             }
         }).start();
+
+        // 선택한 레시피의 nickname 즐겨찾기 리스트에 저장
+        TextView cocktailName = findViewById(R.id.nickname);
+        favoriteBtn = (Button)findViewById(R.id.favoriteBtn);
+        favoriteBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Toast.makeText(API_Recipe.this, String.valueOf(cocktailName.getText()), Toast.LENGTH_SHORT).show();
+
+                FirebaseAuth mAuth = FirebaseAuth.getInstance();
+                final FirebaseUser user = mAuth.getCurrentUser();
+                databaseReference = firebaseDatabase.getReference("alcoholic");
+                String recipe_key = databaseReference.child("Favorite").push().getKey();
+
+                Map<String,Object> recipeValue = hashMap;
+                Map<String,Object> recipeUpdates = new HashMap<>();
+                //맵핑된 해시 테이블 오브젝트를 firebase에 업데이트
+                recipeUpdates.put("Favorite/"+user.getUid()+"/"+recipeValue.get("strDrink"),recipeValue);
+                databaseReference.updateChildren(recipeUpdates);
+            }
+        });
     }
 
     public void getTranslation() {
 
-        String clientId = "VFcHILW7PKggGd9sO9Et";
-        String clientSecret = "c634pRyxvp";
+        String clientId = "";
+        String clientSecret = "";
 
         try {
             String apiURL = "https://openapi.naver.com/v1/papago/n2mt";
@@ -198,34 +233,6 @@ public class API_Recipe extends AppCompatActivity {
             hashMap.put("strInstructions", jstr.optString("translatedText"));
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-    private class DownloadFilesTask extends AsyncTask<String,Void, Bitmap> {
-        @Override
-        protected Bitmap doInBackground(String... strings) {
-            Bitmap bmp = null;
-            try {
-                String img_url = strings[0]; //url of the image
-                URL url = new URL(img_url);
-                bmp = BitmapFactory.decodeStream(url.openConnection().getInputStream());
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return bmp;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-        }
-
-
-        @Override
-        protected void onPostExecute(Bitmap result) {
-            // doInBackground 에서 받아온 total 값 사용 장소
-            image.setImageBitmap(result);
         }
     }
 }

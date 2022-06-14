@@ -21,6 +21,7 @@ import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.w3c.dom.Text;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,9 +34,12 @@ import java.util.Iterator;
 
 public class API_Ingredient extends AppCompatActivity {
 
-    public static String key = "9973533";
-    public static String address = "https://www.thecocktaildb.com/api/json/v2/";
+    public static String key = "";
+    public static String address = "";
     private ListView listView;
+    private Button favoriteBtn;
+
+    ArrayList<String> favoriteInfo = new ArrayList<String>();
     ListArrayAdapter adapter;
 
     // 칵테일 제목을 담을 ArrayList 변수(items) 선언
@@ -88,6 +92,7 @@ public class API_Ingredient extends AppCompatActivity {
                             public void run() {
                                 adapter.notifyDataSetChanged();
                                 Toast.makeText(getApplicationContext(), "칵테일을 찾을 수 없어요!", Toast.LENGTH_SHORT).show();
+                                onBackPressed();
                             }
                         }, 100);
                     }
@@ -126,6 +131,7 @@ public class API_Ingredient extends AppCompatActivity {
             }
         });
 
+
         adapter = new ListArrayAdapter(this, android.R.layout.simple_list_item_1, itemList);
         // listView에 adapter 적용
         listView.setAdapter(adapter);
@@ -140,6 +146,7 @@ public class API_Ingredient extends AppCompatActivity {
             }
         });
     }
+
     static String removeComma(String str) {
         if (str.endsWith(",")) {
             return str.substring(0, str.length() - 1);
